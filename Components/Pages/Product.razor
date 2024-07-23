@@ -1,0 +1,91 @@
+﻿@page "/product"
+@rendermode InteractiveServer
+
+<PageTitle>Product</PageTitle>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-lg-9">
+            <table class="table table-hover table-dark">
+                <thead>
+                    <tr>
+                        <th scope="col">#ID</th>
+                        <th scope="col">Name</th>
+                        <th scope="col">Price</th>
+                        <th scope="col">Category</th>
+                        <th scope="col">Edit</th>
+                        <th scope="col">Delete</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (products.Count != 0)
+                    {
+                        @foreach (var product in products)
+                        {
+                            <tr>
+                                <td>@product.Id</td>
+                                <td>@product.Name</td>
+                                <td>@product.Price</td>
+                                <td>@product.Category.Name</td>
+                                <td><a class="btn btn-info" href="add-product/{@product.Id}">Edit</a></td>
+                                <td><button class="btn btn-danger" @onclick="()=>DeleteProduct(product)">Delete</button></td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr>
+                            <td colspan="6" class="bg-danger">
+                                <p class="text-center">No Products To Show</p>
+                            </td>
+                        </tr>
+                    }
+
+                </tbody>
+            </table>
+        </div>
+        <div class="col-lg-3">
+            <a class="btn btn-outline-primary w-75" href="add-product">Add Product</a>
+            <input type="text" @bind-value="searchedProduct" class="form-control mt-3 w-75" placeholder="Search Product" />
+            <button class="btn btn-outline-primary mt-2 w-75" @onclick="SearchProduct">Search</button>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Inject] protected Models.DatabaseContext db { get; set; }
+    [Inject] protected IJSRuntime jsRuntime { get; set; }
+
+    protected List<Models.Product> products = new();
+    DateTime dateTime;
+    protected int productId;
+    protected string searchedProduct;
+    protected string ToastMessage;
+    protected int i;
+
+    protected override void OnInitialized()
+    {
+        products = db.Products.Include(x=>x.Category).ToList();
+        base.OnInitialized();
+    }
+
+    protected async Task DeleteProduct(Models.Product product)
+    {
+        bool confirmed = await jsRuntime.InvokeAsync<bool>("confirm", "Are you sure?");
+        if (confirmed)
+        {
+            db.Products.Remove(product);
+            i = db.SaveChanges();
+            products.Remove(product);
+            ToastMessage = "Product Deleted!";
+        }
+    }
+
+    protected void SearchProduct()
+    {
+        if (string.IsNullOrWhiteSpace(searchedProduct))
+            products = db.Products.ToList();
+        else
+            products = db.Products.Where(x => x.Name.Contains(searchedProduct)).ToList();
+    }
+}

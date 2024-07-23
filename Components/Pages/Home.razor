@@ -1,0 +1,109 @@
+﻿@page "/"
+@rendermode InteractiveServer
+
+<PageTitle>Quote</PageTitle>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-lg-9">
+            <table class="table table-hover table-dark">
+                <thead>
+                    <tr>
+                        <th scope="col">#ID</th>
+                        <th scope="col">Total Cost</th>
+                        <th scope="col">Details</th>
+                        <th scope="col">Edit</th>
+                        <th scope="col">Delete</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (products.Count != 0)
+                    {
+                        @foreach (var quote in quotes)
+                        {
+                            <tr>
+                                <td>@quote.Id</td>
+                                <td>@quote.NetTotal</td>
+                                <td><a class="btn btn-warning" href="quote-details/@quote.Id">Details</a></td>
+                                <td><a class="btn btn-info" href="add-quote/@quote.Id">Edit</a></td>
+                                <td><button class="btn btn-danger" @onclick="()=>DeleteQuote(quote)">Delete</button></td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr>
+                            <td colspan="6" class="bg-danger">
+                                <p class="text-center">No Quotes To Show</p>
+                            </td>
+                        </tr>
+                    }
+
+                </tbody>
+            </table>
+        </div>
+        <div class="col-lg-3">
+            <a class="btn btn-outline-primary w-75" href="add-quote">Add Quote</a>
+            <input type="number" @bind-value="searchedQuote" class="form-control mt-3 w-75" placeholder="Search Quote By Id" />
+            <button class="btn btn-outline-primary mt-2 w-75" @onclick="SearchQuote">Search</button>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Inject] protected Models.DatabaseContext db { get; set; }
+    [Inject] protected IJSRuntime jsRuntime { get; set; }
+
+    protected Models.Product newProduct = new();
+    protected Models.ProductQuote newProductQuote = new();
+    protected List<Models.Product> products = new();
+    protected List<Models.Category> categories = new();
+    protected List<Models.Quote> quotes = new();
+    DateTime dateTime;
+    protected string ToastMessage;
+    protected int i;
+    protected int productId;
+    protected int quoteId;
+    protected int searchedQuote;
+    protected bool productSelected = false;
+    protected decimal NetTotal;
+
+    protected override void OnInitialized()
+    {
+        products = db.Products.ToList();
+        categories = db.Categories.ToList();
+        quotes = db.Quotes.ToList();
+        base.OnInitialized();
+    }
+
+    protected void AddQuote()
+    {
+        i = 0;
+    }
+
+    protected async Task DeleteQuote(Models.Quote quote)
+    {
+        bool confirmed = await jsRuntime.InvokeAsync<bool>("confirm", "Are you sure?");
+        if (confirmed)
+        {
+            db.Quotes.Remove(quote);
+            i = db.SaveChanges();
+            quotes.Remove(quote);
+            ToastMessage = "Quote Deleted!";
+        }
+    }
+
+    protected void SearchQuote()
+    {
+        if (searchedQuote == 0)
+            quotes = db.Quotes.ToList();
+        else if (searchedQuote < 0)
+        {
+            i = 1;
+            ToastMessage = "Incorrect Quote ID";
+        }
+        else
+            quotes = db.Quotes.Where(x => x.Id == searchedQuote).ToList();
+    }
+
+}

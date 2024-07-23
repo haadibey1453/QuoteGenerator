@@ -1,0 +1,155 @@
+﻿@page "/add-quote"
+@page "/add-quote/{id}"
+@rendermode InteractiveServer
+
+<PageTitle>Add Quote</PageTitle>
+
+<div class="container">
+    <div class="row d-flex justify-content-center">
+        <div class="col-lg-5 card p-3">
+            <div class="form-group">
+                <label for="exampleInputProduct"><b>Product</b></label>
+                <select class="form-select" @onchange="HandleSelect">
+                    <option value="#">Select Product</option>
+                    @foreach (var product in products)
+                    {
+                        <option value="@product.Id">@product.Name</option>
+                    }
+                </select>
+            </div>
+            @if (productSelected)
+            {
+                <div class="form-group mt-1">
+                    <label for="exampleInputQuantity"><b>Product Quantity</b></label>
+                    <input type="number" class="form-control mt-2" @bind-value="newProductQuote.Quantity" placeholder="Enter Quantity" required>
+                    <button class="btn btn-warning mt-2" @onclick="AddProduct">Add Product</button>
+                </div>
+            }
+            @if (selectedProductQuotes.Count != 0)
+            {
+                @foreach (var selectedProductQuote in selectedProductQuotes)
+                {
+                    <h6 class="p-2 text-danger">@selectedProductQuote.Product.Name &nbsp;&nbsp; <span class="badge bg-secondary">@selectedProductQuote.Quantity</span>&nbsp;<button class="btn btn-danger" @onclick="()=>RemoveProduct(selectedProductQuote)" style="border-radius: 50%;">x</button></h6>
+                }
+            }
+            <button type="submit" class="btn btn-success mt-2" @onclick="Submit">Save</button>
+        </div>
+    </div>
+    <div class="row d-flex justify-content-center mt-3">
+        <div class="col-lg-5">
+            <a class="btn btn-primary" href="/">View Quotes</a>
+        </div>
+    </div>
+</div>
+@if (i != 0)
+{
+    <div class="container mt-2">
+        <div class="row d-flex justify-content-center">
+            <div class="col-lg-5">
+                <div class="alert alert-secondary text-center" role="alert">
+                    @ToastMessage
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Inject] protected Models.DatabaseContext db { get; set; }
+    [Parameter] public string id { get; set; }
+
+    protected List<Models.Product> products = new();
+    protected Models.ProductQuote newProductQuote = new();
+    protected List<Models.ProductQuote> selectedProductQuotes = new();
+    protected Models.Quote newQuote = new();
+    protected List<decimal> productTotalList = new();
+    protected List<Models.Quote> quotes = new();
+    protected Models.Quote EditQuote = new();
+
+    protected bool productSelected = false;
+    protected int productId;
+    protected decimal NetTotal;
+    protected int i;
+    protected string ToastMessage;
+    protected DateTime dateTime;
+
+    protected override void OnInitialized()
+    {
+        products = db.Products.ToList();
+        if (id != null)
+        {
+            EditQuote = db.Quotes.Include(x=>x.ProductQuotes).Where(x => x.Id == Convert.ToInt32(id)).FirstOrDefault();
+            selectedProductQuotes = EditQuote.ProductQuotes.ToList();
+        }
+        base.OnInitialized();
+    }
+
+    protected void AddProduct()
+    {
+        Models.Product product = db.Products.Where(x => x.Id == productId).First();
+        newProductQuote.Product = product;
+        selectedProductQuotes.Add(newProductQuote);
+        // newQuote.ProductQuotes.Add(newProductQuote);
+        newProductQuote = new();
+    }
+
+    protected void RemoveProduct(Models.ProductQuote selectedPQ)
+    {
+        selectedProductQuotes.Remove(selectedPQ);
+    }
+
+    protected void Submit()
+    {
+
+        if (Convert.ToInt32(id) != 0)
+        {
+            CalculateProductTotal();
+            DateTime now = DateTime.Now;
+            EditQuote.DateTime = now;
+            EditQuote.NetTotal = newQuote.NetTotal;
+            EditQuote.ProductQuotes = selectedProductQuotes.ToList();
+            db.Quotes.Update(EditQuote);
+            i = db.SaveChanges();
+            ToastMessage = "Quote Updated!";
+            selectedProductQuotes.Clear();
+        }
+        else
+        {
+            CalculateProductTotal();
+            DateTime now = DateTime.Now;
+            newQuote.DateTime = now;
+            newQuote.ProductQuotes = selectedProductQuotes.ToList();
+            db.Quotes.Add(newQuote);
+            i = db.SaveChanges();
+            quotes.Add(newQuote);
+            dateTime = DateTime.Now;
+            ToastMessage = "Quote Added!";
+            selectedProductQuotes.Clear();
+            newProductQuote = new();
+        }
+
+    }
+
+    protected void HandleSelect(ChangeEventArgs e)
+    {
+        productSelected = true;
+        newProductQuote.ProductId = Convert.ToInt32(e.Value.ToString());
+        productId = Convert.ToInt32(e.Value.ToString());
+    }
+
+    protected void CalculateProductTotal()
+    {
+        decimal productTotal;
+        for (int i = 0; i < selectedProductQuotes.Count; i++)
+        {
+            productTotal = selectedProductQuotes[i].Product.Price * selectedProductQuotes[i].Quantity;
+            productTotalList.Add(productTotal);
+        }
+
+        for (int i = 0; i < productTotalList.Count; i++)
+        {
+            NetTotal += productTotalList[i];
+        }
+        newQuote.NetTotal = NetTotal;
+    }
+}

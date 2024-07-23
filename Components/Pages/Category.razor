@@ -1,0 +1,170 @@
+﻿@page "/category"
+@rendermode InteractiveServer
+
+<PageTitle>Category</PageTitle>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-lg-9">
+            <table class="table table-hover table-dark">
+                <thead>
+                    <tr>
+                        <th scope="col">#ID</th>
+                        <th scope="col">Name</th>
+                        <th scope="col">Edit</th>
+                        <th scope="col">Delete</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (categories.Count!=0)
+                    {
+                        @foreach(var category in categories)
+                        {
+                            <tr>
+                                <td>@category.Id</td>
+                                <td>@category.Name</td>
+                                <td><button class="btn btn-info" @onclick="()=>EditCategory(category)">Edit</button></td>
+                                <td><button class="btn btn-danger" @onclick="()=>DeleteCategory(category)">Delete</button></td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr>
+                            <td colspan="4" class="bg-danger">
+                                    <p class="text-center">No Categories To Show</p>
+                            </td>
+                        </tr>
+                    }
+                    
+                </tbody>
+            </table>
+        </div>
+        <div class="col-lg-3">
+            <button class="btn btn-outline-primary w-75" @onclick="AddCategory">Add Category</button>
+            <input type="text" @bind-value="searchedCategory" class="form-control mt-3 w-75" placeholder="Search Category"/>
+            <button class="btn btn-outline-primary mt-2 w-75" @onclick="SearchCategory">Search</button>
+        </div>
+    </div>
+</div>
+@if (AddBtnClicked)
+{
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-9">
+                <form class="card p-3">
+                    <div class="form-group">
+                        <label for="exampleInputName"><b>Category Name</b></label>
+                        <input type="text" class="form-control mt-2" @bind-value="newCategory.Name" placeholder="Enter Name" required>
+                    </div>
+                    <button type="submit" class="btn btn-success mt-2" @onclick=Submit>Save</button>
+                    <button type="submit" class="btn btn-secondary mt-2" @onclick="Cancel">Cancel</button>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+@if (i!=0)
+{
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="alert alert-success" role="alert">
+                    @ToastMessage
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Inject] protected Models.DatabaseContext db { get; set; }
+    [Inject] protected IJSRuntime jsRuntime { get; set; }
+
+    protected bool AddBtnClicked = false;
+    protected Models.Category newCategory = new();
+    protected List<Models.Category> categories = new();
+    protected List<string> categoryNames = new();
+    DateTime dateTime;
+    protected string ToastMessage;
+    protected int i;
+    protected int categoryId;
+    protected string searchedCategory;
+
+    protected override void OnInitialized()
+    {
+        categories = db.Categories.ToList();
+        base.OnInitialized();
+    }
+
+    protected void AddCategory()
+    {
+        AddBtnClicked = true;
+        i = 0;
+    }
+
+    protected void Submit()
+    {
+        if (isValid())
+        {
+            if (categoryId != 0)
+            {
+                db.Categories.Update(newCategory);
+                i = db.SaveChanges();
+                ToastMessage = "Category Updated!";
+            }
+            else
+            {
+                db.Categories.Add(newCategory);
+                i = db.SaveChanges();
+                categories.Add(newCategory);
+                dateTime = DateTime.Now;
+                ToastMessage = "Category Added!";
+            }
+        }
+    }
+
+    protected void Cancel()
+    {
+        AddBtnClicked = false;
+    }
+
+    protected void EditCategory(Models.Category category)
+    {
+        categoryId = category.Id;
+        AddBtnClicked = true;
+        newCategory = db.Categories.Where(x => x.Id == categoryId).First();
+        newCategory.Name = category.Name;
+    }
+
+    protected async Task DeleteCategory(Models.Category category)
+    {
+        bool confirmed = await jsRuntime.InvokeAsync<bool>("confirm", "Are you sure?");
+        if (confirmed)
+        {
+            db.Categories.Remove(category);
+            i = db.SaveChanges();
+            categories.Remove(category);
+            ToastMessage = "Category Deleted!";
+        }
+    }
+
+    protected void SearchCategory()
+    {
+        if (string.IsNullOrWhiteSpace(searchedCategory))
+            categories = db.Categories.ToList();
+        else
+            categories = db.Categories.Where(x => x.Name.Contains(searchedCategory)).ToList();
+    }
+
+    protected bool isValid()
+    {
+        for(int i=0; i<categories.Count; i++)
+            categoryNames.Add(categories[i].Name);
+
+        if (newCategory.Name != null)
+            return true;
+        else
+            return false;
+    }
+}

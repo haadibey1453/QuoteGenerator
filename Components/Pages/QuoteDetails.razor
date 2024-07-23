@@ -1,0 +1,113 @@
+﻿@page "/quote-details/{id}"
+@rendermode InteractiveServer
+
+<div class="container">
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="card-invoice">
+                <div class="card-body">
+                    <div class="invoice-title">
+                        <h4 class="float-end font-size-15">@quote.DateTime.Day/@quote.DateTime.Month/@quote.DateTime.Year</h4>
+                        <div class="mb-4">
+                            <h2 class="mb-1 text-muted">Quote @quote.Id</h2>
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+                    <div class="row">
+                        <h3 class="font-size-16 mb-2">Products:</h3>
+                    </div>
+                    <div class="row">
+                        <div class="col-lg-12">
+                            <table class="table table-light">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">#ID</th>
+                                        <th scope="col">Name</th>
+                                        <th scope="col">Price</th>
+                                        <th scope="col">Quantity</th>
+                                        <th scope="col">Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @if (productQuotes.Count != 0)
+                                    {
+                                        @foreach (var product in productQuotes)
+                                        {
+                                            <tr>
+                                                <td>@product.ProductId</td>
+                                                <td>@product.Product.Name</td>
+                                                <td>@product.Product.Price</td>
+                                                <td>@product.Quantity</td>
+                                                <td>@(product.Product.Price * product.Quantity)</td>
+                                            </tr>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <tr>
+                                            <td colspan="6" class="bg-danger">
+                                                <p class="text-center">No Products To Show</p>
+                                            </td>
+                                        </tr>
+                                    }
+
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <!-- end row -->
+                    <hr class="bg-black" />
+                    <div class="py-2">
+                        <h5 class="font-size-15">Quote Summary</h5>
+
+                        <div class="table-responsive">
+                            <table class="table align-middle table-nowrap table-centered mb-0">
+                                <tbody>
+
+                                    <tr>
+                                        <th scope="row" colspan="4" class="border-0 text-end">
+                                            Discount
+                                        </th>
+                                        <td class="border-0 text-end">- $0</td>
+                                    </tr>
+                                    <!-- end tr -->
+
+                                    <tr>
+                                        <th scope="row" colspan="4" class="border-0 text-end">Net Total</th>
+                                        <td class="border-0 text-end"><h4 class="m-0 fw-semibold">$@quote.NetTotal</h4></td>
+                                    </tr>
+                                    <!-- end tr -->
+                                </tbody><!-- end tbody -->
+                            </table><!-- end table -->
+                        </div><!-- end table responsive -->
+                        <div class="d-print-none mt-4">
+                            <div class="float-end">
+                                <a href="/" class="btn btn-primary w-md">See Quotes</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div><!-- end col -->
+    </div>
+</div>
+
+@code {
+    [Inject] protected Models.DatabaseContext db { get; set; }
+    [Parameter]
+    public string id { get; set; }
+
+    protected Models.Quote quote = new();
+    protected Models.Product product1 = new();
+    protected List<Models.ProductQuote> productQuotes = new();
+    protected List<Models.Product> products = new();
+    protected int productCost;
+
+    protected override void OnInitialized()
+    {
+        quote = db.Quotes.Where(x => x.Id == Convert.ToInt32(id)).First();
+        productQuotes = db.QuoteProducts.Include(x=>x.Product).Where(x=>x.QuoteId == Convert.ToInt32(id)).ToList();
+        base.OnInitialized();
+    }
+}
